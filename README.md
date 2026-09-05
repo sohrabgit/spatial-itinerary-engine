@@ -99,10 +99,16 @@ never requests tiles.
 | **M4** | 5,000-connection benchmark, distributed tracing | |
 | **M5** | ADRs, demo video, `git clone && make demo` | |
 
-## Design decisions
+## Documentation
 
-Architecture decision records live in [`docs/adr/`](docs/adr/). Deliberate
-exclusions are in [`docs/NON-GOALS.md`](docs/NON-GOALS.md).
+| | |
+|---|---|
+| [`docs/STATUS.md`](docs/STATUS.md) | What is built, what is measured, what is open |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | M2–M5 in enough detail to execute |
+| [`docs/adr/`](docs/adr/) | Why things are the way they are, including what turned out wrong |
+| [`docs/DATA_COVERAGE.md`](docs/DATA_COVERAGE.md) | Measured OSM tag coverage and retrieval signal |
+| [`docs/NON-GOALS.md`](docs/NON-GOALS.md) | What this deliberately does not do |
+| [`CLAUDE.md`](CLAUDE.md) | Orientation, invariants, and gotchas that cost hours |
 
 ## Verified environment facts
 
