@@ -45,6 +45,14 @@ make api         # planner on :8000
 make web         # app on :3002
 ```
 
+If you move or rename the checkout, rebuild the Python venv — `uv` bakes
+absolute paths into its console scripts, and the failure is an unhelpful
+`Failed to spawn: uvicorn`:
+
+```bash
+rm -rf services/api-py/.venv && (cd services/api-py && uv sync)
+```
+
 The pipeline is a one-time ~9 minutes: 28k POIs scanned in 1s, embedded on the
 host GPU in ~2.5min, Tier B computed in 17s, OSRM foot graph built in 15s.
 
