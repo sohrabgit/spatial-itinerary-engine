@@ -39,8 +39,14 @@ export default function ItineraryMap({ days, activeDay, hoveredStop, onHoverStop
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
+  // Latest-callback ref: the map's event handlers are registered once on load,
+  // but must always call the CURRENT onHoverStop. Assigning in an effect rather
+  // than during render -- mutating a ref while rendering is unsafe under
+  // concurrent rendering, and React 19 flags it.
   const onHover = useRef(onHoverStop);
-  onHover.current = onHoverStop;
+  useEffect(() => {
+    onHover.current = onHoverStop;
+  }, [onHoverStop]);
 
   useEffect(() => {
     if (!container.current || map.current) return;

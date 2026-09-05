@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import respx
 
@@ -5,8 +7,9 @@ from app.intent import extract
 from app.schemas import TravelIntent
 
 
-def _ok(payload: dict) -> httpx.Response:
-    return httpx.Response(200, json={"message": {"content": payload if isinstance(payload, str) else __import__("json").dumps(payload)}})
+def _ok(payload: dict | str) -> httpx.Response:
+    content = payload if isinstance(payload, str) else json.dumps(payload)
+    return httpx.Response(200, json={"message": {"content": content}})
 
 
 @respx.mock
