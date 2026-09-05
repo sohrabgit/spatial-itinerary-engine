@@ -1,0 +1,85 @@
+# POI taxonomy. Declarative on purpose: a reviewer sees the whole selection
+# policy at a glance, and tuning it does not mean touching Go.
+#
+# require.name drops an enormous amount of noise -- an unnamed bench or bin is
+# useless in an itinerary.
+
+require:
+  name: true
+
+# osm_key -> osm_value -> normalised rule. `category` is written to poi.category
+# and `dwell` seeds poi.dwell_minutes (per-POI overridable later).
+include:
+  tourism:
+    museum:      {category: museum,     dwell: 90}
+    gallery:     {category: gallery,    dwell: 60}
+    artwork:     {category: artwork,    dwell: 10}
+    attraction:  {category: attraction, dwell: 45}
+    viewpoint:   {category: viewpoint,  dwell: 20}
+    zoo:         {category: zoo,        dwell: 120}
+    aquarium:    {category: aquarium,   dwell: 90}
+  historic:
+    monument:    {category: monument,   dwell: 20}
+    memorial:    {category: monument,   dwell: 15}
+    castle:      {category: castle,     dwell: 90}
+    church:      {category: church,     dwell: 25}
+    ruins:       {category: monument,   dwell: 25}
+    city_gate:   {category: monument,   dwell: 15}
+  leisure:
+    park:            {category: park,   dwell: 40}
+    garden:          {category: park,   dwell: 35}
+    nature_reserve:  {category: park,   dwell: 60}
+  amenity:
+    cafe:        {category: cafe,       dwell: 45}
+    restaurant:  {category: restaurant, dwell: 75}
+    bar:         {category: bar,        dwell: 60}
+    pub:         {category: bar,        dwell: 60}
+    ice_cream:   {category: dessert,    dwell: 20}
+    library:     {category: library,    dwell: 45}
+    theatre:     {category: theatre,    dwell: 120}
+    cinema:      {category: cinema,     dwell: 120}
+    marketplace: {category: market,     dwell: 45}
+    fountain:    {category: monument,   dwell: 10}
+    place_of_worship: {category: church, dwell: 25}
+  shop:
+    bakery:      {category: bakery,     dwell: 15}
+    books:       {category: shop,       dwell: 25}
+    chocolate:   {category: shop,       dwell: 15}
+    cheese:      {category: shop,       dwell: 15}
+    deli:        {category: shop,       dwell: 15}
+
+# Any feature carrying one of these keys is dropped regardless of the above.
+exclude_keys: [disused, abandoned, demolished, construction, was]
+
+# Inferred opening hours, used ONLY when a POI has no opening_hours tag.
+# 60.5% of Paris POIs have none (see docs/DATA_COVERAGE.md), and hours are a
+# hard constraint in the solver, so dropping them would cost most of the corpus.
+#
+# Every interval applied from here is recorded in poi_attr_provenance as
+# tier B / confidence 0.5 / source "infer:category/<cat>", and the eval harness
+# reports feasibility separately for known vs inferred hours. See ADR 0005.
+#
+# open/close are minutes from midnight. days: 0=Mon .. 6=Sun.
+default_hours:
+  museum:     {open: 600,  close: 1080, days: [1,2,3,4,5,6]}   # 10:00-18:00, closed Mon
+  gallery:    {open: 660,  close: 1140, days: [1,2,3,4,5,6]}   # 11:00-19:00, closed Mon
+  castle:     {open: 600,  close: 1080, days: [0,1,2,3,4,5,6]}
+  zoo:        {open: 600,  close: 1080, days: [0,1,2,3,4,5,6]}
+  aquarium:   {open: 600,  close: 1080, days: [0,1,2,3,4,5,6]}
+  church:     {open: 540,  close: 1140, days: [0,1,2,3,4,5,6]}  # 09:00-19:00
+  library:    {open: 600,  close: 1080, days: [0,1,2,3,4,5]}
+  cafe:       {open: 480,  close: 1140, days: [0,1,2,3,4,5,6]}  # 08:00-19:00
+  bakery:     {open: 420,  close: 1140, days: [0,1,2,3,4,5]}    # 07:00-19:00
+  restaurant: {open: 720,  close: 1380, days: [0,1,2,3,4,5,6]}  # 12:00-23:00
+  bar:        {open: 1020, close: 1440, days: [0,1,2,3,4,5,6]}  # 17:00-24:00
+  dessert:    {open: 720,  close: 1320, days: [0,1,2,3,4,5,6]}
+  market:     {open: 480,  close: 840,  days: [1,2,3,4,5,6]}    # mornings
+  shop:       {open: 600,  close: 1140, days: [0,1,2,3,4,5]}
+  theatre:    {open: 1140, close: 1380, days: [1,2,3,4,5,6]}
+  cinema:     {open: 660,  close: 1380, days: [0,1,2,3,4,5,6]}
+  # Always-open, unenclosed: no time window constrains the solver.
+  park:       {open: 0, close: 1440, days: [0,1,2,3,4,5,6]}
+  monument:   {open: 0, close: 1440, days: [0,1,2,3,4,5,6]}
+  artwork:    {open: 0, close: 1440, days: [0,1,2,3,4,5,6]}
+  viewpoint:  {open: 0, close: 1440, days: [0,1,2,3,4,5,6]}
+  attraction: {open: 540, close: 1080, days: [0,1,2,3,4,5,6]}

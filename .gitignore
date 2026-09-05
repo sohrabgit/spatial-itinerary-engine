@@ -1,0 +1,27 @@
+.env
+*.log
+
+# Data artifacts: large, regenerable, must never be committed.
+/data/
+*.osm.pbf
+*.osrm*
+*.pmtiles
+
+# Build output
+node_modules/
+.next/
+dist/
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+/services/edge-go/bin/
+/services/ingest-go/bin/
+
+# Benchmark/eval raw output (committed summaries live in docs/)
+/ops/k6/results/
+/eval/runs/
+
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,13 @@
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Local env (values here are all NEXT_PUBLIC_, but keep the convention)
+.env*.local
+
+# maplibre-gl v6 ships its worker as a separate ES module that Next's bundler
+# does not emit. scripts/copy-maplibre-worker.mjs copies it here on
+# predev/prebuild, so it is generated, never authored.
+/public/maplibre/

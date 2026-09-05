@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  /* Dark ground in the same green-black family as Paris enamel street plaques,
+     rather than a neutral charcoal. Surfaces lift by lightness, not by border. */
+  --color-paper: #0c1614;
+  --color-paper-raised: #14201d;
+  --color-ink: #e7e4dc;
+  --color-ink-soft: #9aaaa4;
+  --color-ink-faint: #6a7a75;
+  --color-rule: #253531;
+
+  /* Paris Métro line colours, brightened to hold up on a dark ground. */
+  --color-day-1: #3b9be8;
+  --color-day-2: #e86bb6;
+  --color-day-3: #35b98a;
+  --color-day-4: #f2a24e;
+
+  --font-display: "Spectral", Georgia, serif;
+  --font-ui: "Archivo", system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-feature-settings: "tnum" 1; /* tabular figures: times must align */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* MapLibre's default control chrome is loud against a scrimmed basemap. */
+.maplibregl-ctrl-attrib {
+  background: rgba(12, 22, 20, 0.78) !important;
+  font-family: var(--font-ui);
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-soft) !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-day-1);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,136 @@
+# Local-only travel recommendation engine. Zero billed external APIs.
+#
+# Profiles are load-bearing, not cosmetic: the Docker VM cannot hold the serving
+# stack and the ingest/index-build stack at the same time.
+#   default  serving stack
+#   ingest   one-shot jobs (OSM parse, OSRM prep) -- run with the stack DOWN
+#   obs      Grafana/Tempo/Loki/Prometheus
+#   gpu      containerised Ollama; Linux+NVIDIA only, NEVER started on macOS
+
+# Pinned explicitly: Compose otherwise derives the project name from the
+# directory, so renaming the checkout would orphan the data volumes.
+name: spatial-itinerary-engine
+
+x-ollama-env: &ollama-env
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:3b}
+  OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+  OLLAMA_EMBED_DIM: ${OLLAMA_EMBED_DIM:-768}
+
+x-host-gateway: &host-gateway
+  # No-op on Docker Desktop; required for the same URL to resolve on Linux.
+  - "host.docker.internal:host-gateway"
+
+x-db-env: &db-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-itinerary}
+
+services:
+  db:
+    build:
+      context: ./infra/postgres
+    image: travel-postgres:17-3.6
+    # pg_stat_statements needs preloading -- CREATE EXTENSION alone leaves it
+    # non-functional, and the failure only shows when you query the view.
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_parallel_maintenance_workers=4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-itinerary}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Asserts the extension exists, not just that the server accepts connections.
+    # Catches "container is up but init scripts silently failed".
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-itinerary} && psql -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-itinerary} -tAc \"select 1 from pg_extension where extname='vector'\" | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    mem_limit: 3g
+    # Parallel HNSW builds allocate shared memory per worker. With
+    # maintenance_work_mem=2GB and 4 workers this needs >1g, and the failure is
+    # "could not resize shared memory segment ... No space left on device",
+    # which does not obviously point at shm. See db/post_load.sql.
+    shm_size: 4g
+
+  cache:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.36.0
+    # WITHOUT --proactor_threads Dragonfly sizes memory from CPU count: on a
+    # 14-core VM it reserves ~3.5GB for a cache holding ~100MB. See ADR 0007.
+    # --dbfilename= disables snapshotting: the cache is rebuildable from Postgres.
+    command: >
+      --proactor_threads=2
+      --maxmemory=1gb
+      --cache_mode=true
+      --dbfilename=
+    ports: ["${REDIS_PORT:-6379}:6379"]
+    ulimits:
+      memlock: -1
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 1500m
+
+  # Foot profile is not optional: the car profile refuses highway=footway,
+  # steps and pedestrian plazas, and will happily route a walker onto the
+  # Peripherique. MLD (not CH) because osrm-customize re-runs in ~1s when the
+  # profile is tweaked, which happens repeatedly during tuning.
+  osrm-foot:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    command: osrm-routed --algorithm mld --max-table-size 500 /data/paris.osrm
+    volumes:
+      - ./data/osrm:/data:ro
+    # 5001, not 5000: macOS AirPlay Receiver (ControlCenter) binds 5000 by
+    # default, and the resulting "address already in use" is easy to misread as
+    # a stale container.
+    ports: ["${OSRM_PORT:-5001}:5000"]
+    healthcheck:
+      # A real route between two known Paris points: proves the graph loaded,
+      # not merely that the process is listening.
+      #
+      # 127.0.0.1, NOT localhost: osrm-routed binds IPv4 0.0.0.0 only, while
+      # localhost inside the container resolves to ::1 first -- so wget gets
+      # "connection refused" against a service that is working perfectly.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/route/v1/foot/2.3364,48.8606;2.3376,48.8530"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 2g
+
+  otel-lgtm:
+    profiles: ["obs"]
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"   # Grafana
+      - "4317:4317"                    # OTLP gRPC
+      - "4318:4318"                    # OTLP HTTP
+    environment:
+      ENABLE_LOGS_ALL: "true"
+    mem_limit: 2g
+
+  # Linux + NVIDIA only. On macOS, Ollama runs natively on the host for Metal;
+  # Docker Desktop has no GPU passthrough. See ADR 0003.
+  ollama:
+    profiles: ["gpu"]
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+
+volumes:
+  pgdata:
+  ollama:
